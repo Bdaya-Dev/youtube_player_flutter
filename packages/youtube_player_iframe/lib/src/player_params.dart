@@ -104,12 +104,6 @@ class YoutubePlayerParams {
   /// Specify your domain as the value.
   final String origin;
 
-  /// This parameter specifies a list of video IDs to play.
-  ///
-  /// If you specify a value, the first video that plays will be the [YoutubePlayerController.initialVideoId],
-  /// and the videos specified in the playlist parameter will play thereafter.
-  final List<String> playlist;
-
   /// This parameter controls whether videos play inline or fullscreen in an HTML5 player on iOS.
   ///
   /// Default is true.
@@ -164,7 +158,6 @@ class YoutubePlayerParams {
     this.showVideoAnnotations = true,
     this.loop = false,
     this.origin = 'https://www.youtube.com',
-    this.playlist = const [],
     this.playsInline = true,
     this.strictRelatedVideos = false,
     this.startAt = Duration.zero,

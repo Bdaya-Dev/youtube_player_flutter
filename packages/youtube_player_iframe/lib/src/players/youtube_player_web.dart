@@ -136,10 +136,10 @@ class _WebYoutubePlayerState extends State<RawYoutubePlayer> {
             }
 
             if (data.containsKey('VideoData')) {
-              controller.add(
-                controller.value.copyWith(
-                    metaData: YoutubeMetaData.fromRawData(data['VideoData'])),
+              final metaData = YoutubeMetaData.fromRawData(
+                data['VideoData'],
               );
+              controller.provideMetaData(metaData);
             }
 
             if (data.containsKey('VideoTime')) {

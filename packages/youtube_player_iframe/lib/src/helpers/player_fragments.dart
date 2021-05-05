@@ -22,15 +22,16 @@ String youtubeIFrameTag(YoutubePlayerController controller) {
     'color': controller.params.color,
     'hl': controller.params.interfaceLanguage,
     'loop': _boolean(controller.params.loop),
-    if (controller.params.playlist.isNotEmpty)
-      'playlist': '${controller.params.playlist.join(',')}'
+    if (controller.videoIds.length > 1 && controller.currentVideoIdIndex >= 0)
+      'playlist':
+          '${controller.videoIds.skip(controller.currentVideoIdIndex).join(',')}'
   };
   final youtubeAuthority = controller.params.privacyEnhanced
       ? 'www.youtube-nocookie.com'
       : 'www.youtube.com';
   final sourceUri = Uri.https(
     youtubeAuthority,
-    'embed/${controller.initialVideoId}',
+    'embed/${controller.currentVideoId}',
     params,
   );
   return '<iframe id="player" type="text/html"'

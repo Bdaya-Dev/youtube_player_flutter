@@ -1,6 +1,7 @@
 // Copyright 2020 Sarbagya Dhaubanjar. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../src/player_params.dart';
 import 'enums/playback_rate.dart';
 import 'enums/player_state.dart';
 import 'enums/youtube_error.dart';
@@ -10,7 +11,8 @@ import 'meta_data.dart';
 class YoutubePlayerValue {
   /// The duration, current position, buffering state, error state and settings
   /// of a [YoutubePlayerController].
-  YoutubePlayerValue({
+  const YoutubePlayerValue({
+    this.params = const YoutubePlayerParams(),
     this.isReady = false,
     this.hasPlayed = false,
     this.position = const Duration(),
@@ -21,8 +23,35 @@ class YoutubePlayerValue {
     this.playbackRate = PlaybackRate.normal,
     this.playbackQuality,
     this.error = YoutubeError.none,
-    this.metaData = const YoutubeMetaData(),
+    this.metadataMap = const <String, YoutubeMetaData>{},
+    this.videoIds = const <String>[],
+    this.currentVideoIdIndex = -1,
   });
+
+  /// The parameters for the player
+  final YoutubePlayerParams params;
+
+  /// Current queue
+  final List<String> videoIds;
+
+  /// the index of the video in [videoIds] that is being played right now
+  final int currentVideoIdIndex;
+
+  /// gets the current video Id based on [videoIds] and [currentVideoIdIndex]
+  String? get currentVideoId {
+    if (videoIds.isEmpty) return null;
+    if (currentVideoIdIndex < 0 || currentVideoIdIndex >= videoIds.length) {
+      return null;
+    }
+    return videoIds[currentVideoIdIndex];
+  }
+
+  /// Gets the current metadata of the [currentVideoId]
+  YoutubeMetaData? get currentMetaData {
+    final curId = currentVideoId;
+    if (curId == null) return null;
+    return metadataMap[curId];
+  }
 
   /// Returns true when the player is ready to play videos.
   final bool isReady;
@@ -60,13 +89,15 @@ class YoutubePlayerValue {
   final String? playbackQuality;
 
   /// Returns meta data of the currently loaded/cued video.
-  final YoutubeMetaData metaData;
+  final Map<String, YoutubeMetaData> metadataMap;
 
   /// Creates new [YoutubePlayerValue] with assigned parameters and overrides
   /// the old one.
   YoutubePlayerValue copyWith({
+    int? currentVideoIdIndex,
     bool? isReady,
     bool? hasPlayed,
+    List<String>? videoIds,
     Duration? position,
     double? buffered,
     bool? isFullScreen,
@@ -75,9 +106,11 @@ class YoutubePlayerValue {
     double? playbackRate,
     String? playbackQuality,
     YoutubeError? error,
-    YoutubeMetaData? metaData,
+    Map<String, YoutubeMetaData>? metadataMap,
   }) {
     return YoutubePlayerValue(
+      currentVideoIdIndex: currentVideoIdIndex ?? this.currentVideoIdIndex,
+      videoIds: videoIds ?? this.videoIds,
       isReady: isReady ?? this.isReady,
       hasPlayed: hasPlayed ?? this.hasPlayed,
       position: position ?? this.position,
@@ -88,14 +121,14 @@ class YoutubePlayerValue {
       playbackRate: playbackRate ?? this.playbackRate,
       playbackQuality: playbackQuality ?? this.playbackQuality,
       error: error ?? this.error,
-      metaData: metaData ?? this.metaData,
+      metadataMap: metadataMap ?? this.metadataMap,
     );
   }
 
   @override
   String toString() {
     return '$runtimeType('
-        'metaData: ${metaData.toString()}, '
+        'metaData: ${metadataMap.toString()}, '
         'isReady: $isReady, '
         'position: ${position.inSeconds} sec. , '
         'buffered: $buffered , '
@@ -103,6 +136,8 @@ class YoutubePlayerValue {
         'playerState: $playerState, '
         'playbackRate: $playbackRate, '
         'playbackQuality: $playbackQuality, '
+        'currentVideoIdIndex: $currentVideoIdIndex, '
+        'videoIds: $videoIds, '
         'error: $error)';
   }
 }

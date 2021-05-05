@@ -270,10 +270,11 @@ class _MobileYoutubePlayerState extends State<RawYoutubePlayer>
       ..addJavaScriptHandler(
         handlerName: 'VideoData',
         callback: (args) {
-          controller.add(
-            controller.value
-                .copyWith(metaData: YoutubeMetaData.fromRawData(args.first)),
+          //here handle currentVideoIdIndex
+          final metaData = YoutubeMetaData.fromRawData(
+            args.first,
           );
+          controller.provideMetaData(metaData);
         },
       )
       ..addJavaScriptHandler(

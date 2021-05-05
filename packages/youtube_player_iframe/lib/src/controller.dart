@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import 'enums/player_state.dart';
@@ -16,31 +17,31 @@ import 'meta_data.dart';
 import 'player_params.dart';
 import 'player_value.dart';
 
+Future<void> _defaultInvokeJavascript(String param) async {}
+
 /// Controls a youtube player, and provides updates when the state is changing.
 ///
 /// The video is displayed in a Flutter app by creating a [YoutubePlayerIFrame] widget.
 ///
 /// After [YoutubePlayerController.close] all further calls are ignored.
-class YoutubePlayerController extends Stream<YoutubePlayerValue>
-    implements Sink<YoutubePlayerValue> {
+class YoutubePlayerController implements Sink<YoutubePlayerValue> {
   /// Creates [YoutubePlayerController].
   YoutubePlayerController({
-    required this.initialVideoId,
-    this.params = const YoutubePlayerParams(),
-  }) {
-    invokeJavascript = (_) async {};
-  }
-
-  /// The Youtube video id for initial video to be loaded.
-  final String initialVideoId;
-
-  /// Defines default parameters for the player.
-  final YoutubePlayerParams params;
+    List<String> videoIds = const <String>[],
+    YoutubePlayerParams params = const YoutubePlayerParams(),
+  })  : invokeJavascript = _defaultInvokeJavascript,
+        _controller = BehaviorSubject<YoutubePlayerValue>.seeded(
+          YoutubePlayerValue(
+            videoIds: videoIds,
+            params: params,
+            currentVideoIdIndex: videoIds.length > 0 ? 0 : -1,
+          ),
+        );
 
   /// Can be used to invokes javascript function.
   ///
   /// Ensure that the player is ready before using this.
-  late Future<void> Function(String function) invokeJavascript;
+  Future<void> Function(String function) invokeJavascript;
 
   /// Called when player enters fullscreen.
   VoidCallback? onEnterFullscreen;
@@ -48,38 +49,34 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
   /// Called when player exits fullscreen.
   VoidCallback? onExitFullscreen;
 
-  final StreamController<YoutubePlayerValue> _controller =
-      StreamController.broadcast();
+  final BehaviorSubject<YoutubePlayerValue> _controller;
 
-  YoutubePlayerValue _value = YoutubePlayerValue();
+  /// The parameters for the player
+  YoutubePlayerParams get params => value.params;
+
+  /// Current queue
+  List<String> get videoIds => value.videoIds;
+
+  /// the index of the video in [videoIds] that is being played right now
+  int get currentVideoIdIndex => value.currentVideoIdIndex;
+
+  /// gets the current video Id based on [videoIds] and [currentVideoIdIndex]
+  String? get currentVideoId => value.currentVideoId;
+
+  /// Gets the current metadata of the [currentVideoId]
+  YoutubeMetaData? get currentMetaData => value.currentMetaData;
+
+  /// The stream that this controller is controlling.
+  Stream<YoutubePlayerValue> get stream => _controller.stream;
 
   /// The [YoutubePlayerValue].
-  YoutubePlayerValue get value => _value;
+  YoutubePlayerValue get value => _controller.value!;
 
   /// Updates [YoutubePlayerController] with provided [data].
   ///
   /// Intended for internal usage only.
   @override
   void add(YoutubePlayerValue data) => _controller.add(data);
-
-  /// Listen to updates in [YoutubePlayerController].
-  @override
-  StreamSubscription<YoutubePlayerValue> listen(
-    void Function(YoutubePlayerValue event)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-  }) {
-    return _controller.stream.listen(
-      (value) {
-        _value = value;
-        onData?.call(value);
-      },
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError,
-    );
-  }
 
   /// Closes [YoutubePlayerController].
   ///
@@ -135,14 +132,17 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
   ///
   /// [startAt] & [endAt] parameter accepts a [Duration].
   /// If specified, then the video will (start from the closest keyframe to the specified time / end at the specified time).
-  void load(String videoId,
-      {Duration startAt = Duration.zero, Duration? endAt}) {
+  void load(
+    String videoId, {
+    Duration startAt = Duration.zero,
+    Duration? endAt,
+  }) {
     var loadParams = 'videoId:"$videoId",startSeconds:${startAt.inSeconds}';
     if (endAt != null && endAt > startAt) {
       loadParams += ',endSeconds:${endAt.inSeconds}';
     }
     _updateId(videoId);
-    if (_value.hasError) {
+    if (value.hasError) {
       pause();
     } else {
       invokeJavascript('loadById({$loadParams})');
@@ -157,14 +157,17 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
   ///
   /// [startAt] & [endAt] parameter accepts a [Duration].
   /// If specified, then the video will (start from the closest keyframe to the specified time / end at the specified time).
-  void cue(String videoId,
-      {Duration startAt = Duration.zero, Duration? endAt}) {
+  void cue(
+    String videoId, {
+    Duration startAt = Duration.zero,
+    Duration? endAt,
+  }) {
     var cueParams = 'videoId:"$videoId",startSeconds:${startAt.inSeconds}';
     if (endAt != null && endAt > startAt) {
       cueParams += ',endSeconds:${endAt.inSeconds}';
     }
     _updateId(videoId);
-    if (_value.hasError) {
+    if (value.hasError) {
       pause();
     } else {
       invokeJavascript('cueById({$cueParams})');
@@ -214,9 +217,9 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
 
   void _updateId(String id) {
     if (id.length != 11) {
-      add(_value.copyWith(error: YoutubeError.invalidParam));
+      add(value.copyWith(error: YoutubeError.invalidParam));
     } else {
-      add(_value.copyWith(error: YoutubeError.none, hasPlayed: false));
+      add(value.copyWith(error: YoutubeError.none, hasPlayed: false));
     }
   }
 
@@ -244,7 +247,7 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
   void seekTo(Duration position, {bool allowSeekAhead = true}) {
     invokeJavascript('seekTo(${position.inSeconds},$allowSeekAhead)');
     play();
-    add(_value.copyWith(position: position));
+    add(value.copyWith(position: position));
   }
 
   /// Sets the size in pixels of the player.
@@ -279,12 +282,12 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
   /// Might violates Youtube's TOS. Use at your own risk.
   void hidePauseOverlay() => invokeJavascript('hidePauseOverlay()');
 
-  /// MetaData for the currently loaded or cued video.
-  YoutubeMetaData get metadata => _value.metaData;
+  /// MetaData for loaded video ids.
+  Map<String, YoutubeMetaData> get metadataMap => value.metadataMap;
 
   /// Resets the value of [YoutubePlayerController].
   void reset() => add(
-        _value.copyWith(
+        value.copyWith(
           isReady: false,
           isFullScreen: false,
           playerState: PlayerState.unknown,
@@ -292,9 +295,62 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
           position: Duration.zero,
           buffered: 0.0,
           error: YoutubeError.none,
-          metaData: const YoutubeMetaData(),
+          metadataMap: <String, YoutubeMetaData>{},
         ),
       );
+
+  /// Adds the [metadata] to the [metadataMap] and assigns the current video
+  void provideMetaData(YoutubeMetaData metadata) {
+    if (!value.metadataMap.containsKey(metadata.videoId)) {
+      add(
+        value.copyWith(
+          metadataMap: Map.fromEntries(
+            [
+              ...value.metadataMap.entries,
+              MapEntry(metadata.videoId, metadata),
+            ],
+          ),
+        ),
+      );
+    }
+    _ensureVideoIdIsInList(metadata.videoId);
+  }
+
+  void _ensureVideoIdIsInList(
+    String videoId, {
+    bool addToEnd = true,
+  }) {
+    if (videoId.isEmpty) return;
+    if (videoIds.contains(videoId)) {
+      add(
+        value.copyWith(
+          currentVideoIdIndex: videoIds.indexOf(videoId),
+        ),
+      );
+      return;
+    }
+    if (addToEnd) {
+      add(
+        value.copyWith(
+          currentVideoIdIndex: 0,
+          videoIds: [
+            ...videoIds,
+            videoId,
+          ],
+        ),
+      );
+    } else {
+      add(
+        value.copyWith(
+          currentVideoIdIndex: videoIds.length,
+          videoIds: [
+            videoId,
+            ...videoIds,
+          ],
+        ),
+      );
+    }
+  }
 
   /// Converts fully qualified YouTube Url to video id.
   ///
@@ -313,6 +369,37 @@ class YoutubePlayerController extends Stream<YoutubePlayerValue>
     }
 
     return null;
+  }
+
+  /// Adds a video to the queue
+  void addVideoToQueue(
+    String videoId, {
+    bool addToEnd = true,
+  }) {
+    add(
+      value.copyWith(
+        currentVideoIdIndex: value.currentVideoIdIndex < 0
+            ? 0
+            : (value.currentVideoIdIndex > videoIds.length
+                ? 0
+                : value.currentVideoIdIndex),
+        videoIds: [
+          if (!addToEnd) videoId,
+          ...videoIds,
+          if (addToEnd) videoId,
+        ],
+      ),
+    );
+  }
+
+  /// set video ids to play
+  void setVideoIds(List<String> videoIds, int startIndex) {
+    add(
+      value.copyWith(
+        currentVideoIdIndex: startIndex,
+        videoIds: videoIds,
+      ),
+    );
   }
 
   /// Grabs YouTube video's thumbnail for provided video id.

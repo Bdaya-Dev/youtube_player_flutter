@@ -296,6 +296,8 @@ class YoutubePlayerController implements Sink<YoutubePlayerValue> {
           buffered: 0.0,
           error: YoutubeError.none,
           metadataMap: <String, YoutubeMetaData>{},
+          currentVideoIdIndex: -1,
+          videoIds: const [],
         ),
       );
 

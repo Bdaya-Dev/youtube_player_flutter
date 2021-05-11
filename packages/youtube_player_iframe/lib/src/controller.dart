@@ -70,7 +70,7 @@ class YoutubePlayerController implements Sink<YoutubePlayerValue> {
   Stream<YoutubePlayerValue> get stream => _controller.stream;
 
   /// The [YoutubePlayerValue].
-  YoutubePlayerValue get value => _controller.value!;
+  YoutubePlayerValue get value => _controller.value;
 
   /// Updates [YoutubePlayerController] with provided [data].
   ///
